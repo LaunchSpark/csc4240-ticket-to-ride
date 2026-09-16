@@ -1000,6 +1000,48 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
+### Task 6a: Point `uv run run` at the marimo server — ADDED DURING EXECUTION
+
+**Files:**
+- Modify: `services/native-runtime/src/ticket_to_ride/runtime/cli.py`
+- Test: `quality/tests/test_runtime_cli.py`
+
+**Why this was not in the original plan.** The spec and plan both treated the
+viewer as a standalone app. It is not: `uv run run` starts it, via 51 lines of
+`cli.py` (`ViewerLaunchResult`, `ViewerRequestHandler`, `build_viewer_url`,
+`_start_viewer_server`, `_start_vite_viewer`, `_start_viewer_runtime`,
+`_stop_viewer_runtime`) plus the `run()` orchestration, with Vite preferred and
+a static HTTP server as fallback. Deleting `applications/viewer` without this
+task breaks the project's primary command.
+
+**Decision:** `uv run run` starts the marimo server in the viewer's place, so
+one command still brings up PocketBase, the backend, and the notebook surface.
+
+**Interfaces:**
+- Produces: `NotebookServerLaunch(process, message)`,
+  `build_notebook_url(host, port) -> str`, `_start_notebook_runtime(host, port)`,
+  `_stop_notebook_runtime(launch)`.
+- Env vars: `TICKET_TO_RIDE_VIEWER_HOST`/`_PORT` become
+  `TICKET_TO_RIDE_NOTEBOOK_HOST`/`_PORT`, default port `4173` → `2718`.
+
+- [x] **Step 1: Update the CLI tests first** — replace the `build_viewer_url`
+      and `ViewerRequestHandler` tests with one asserting
+      `build_notebook_url("127.0.0.1", 2718) == "http://127.0.0.1:2718/"`, and
+      repoint the three lifecycle tests from a viewer server MagicMock to a
+      notebook process MagicMock asserting `terminate`.
+- [x] **Step 2: Run to verify failure** — ImportError on `NotebookServerLaunch`.
+- [x] **Step 3: Replace the runtime** — one `_start_notebook_runtime` spawning
+      `marimo edit <notebook dir> --headless --host --port --no-token`,
+      replacing all three viewer-start functions. Static serving and the
+      JSX content-type handler go away entirely.
+- [x] **Step 4: Remove orphaned imports** — `threading`, `partial`,
+      `SimpleHTTPRequestHandler`, `ThreadingHTTPServer`, `urlencode`.
+- [x] **Step 5: Verify** — 28 CLI tests pass, full suite 369 green, and a live
+      `uv run run` brings up PocketBase (8090), marimo (2718) and the backend
+      (8000), with `?file=bots.py` resolving to `mode: "edit"`.
+
+---
+
 ### Task 7: Delete `applications/viewer`
 
 **Files:**

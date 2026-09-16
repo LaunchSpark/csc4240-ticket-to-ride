@@ -6,16 +6,13 @@ import random
 import shutil
 import subprocess
 import sys
-import threading
 import time
 import webbrowser
 from collections.abc import Iterable
 from dataclasses import dataclass
-from functools import partial
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from socket import create_connection
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlparse
 
 from ticket_to_ride.backend.bot_catalog import DEFAULT_BOT_API_BASE_URL
 from ticket_to_ride.backend.bootstrap_pocketbase import ensure_collections
@@ -41,9 +38,10 @@ class PocketBaseLaunchResult:
 
 
 @dataclass
-class ViewerLaunchResult:
+class NotebookServerLaunch:
+    """One marimo server serving every notebook in the harness directory."""
+
     process: subprocess.Popen[str] | None = None
-    server: ThreadingHTTPServer | None = None
     message: str | None = None
 
 
@@ -56,37 +54,9 @@ class BotApiLaunchResult:
     base_url: str | None = None
 
 
-class ViewerRequestHandler(SimpleHTTPRequestHandler):
-    extensions_map = {
-        **SimpleHTTPRequestHandler.extensions_map,
-        ".jsx": "text/javascript",
-    }
-
-    @staticmethod
-    def should_serve_app_shell(request_path: str) -> bool:
-        normalized_path = urlparse(request_path).path or "/"
-        if normalized_path in {"/", "/index.html"}:
-            return False
-
-        return "." not in Path(normalized_path).name
-
-    def do_GET(self) -> None:
-        if self.should_serve_app_shell(self.path):
-            original_path = self.path
-            parsed = urlparse(self.path)
-            self.path = f"/index.html{f'?{parsed.query}' if parsed.query else ''}"
-            try:
-                super().do_GET()
-            finally:
-                self.path = original_path
-            return
-
-        super().do_GET()
-
-
-def build_viewer_url(viewer_host: str, viewer_port: int, backend_host: str, backend_port: int) -> str:
-    query = urlencode({"api_base": f"http://{backend_host}:{backend_port}"})
-    return f"http://{viewer_host}:{viewer_port}/index.html?{query}"
+def build_notebook_url(notebook_host: str, notebook_port: int) -> str:
+    """The marimo file browser, from which any notebook opens via ?file=."""
+    return f"http://{notebook_host}:{notebook_port}/"
 
 
 def pocketbase_url() -> str:
@@ -157,95 +127,65 @@ def _wait_for_port(host: str, port: int, timeout_seconds: float = 5.0) -> bool:
     return False
 
 
-def _start_viewer_server(viewer_host: str, viewer_port: int) -> ThreadingHTTPServer:
-    viewer_root = _repo_root() / "applications" / "viewer"
-    handler = partial(ViewerRequestHandler, directory=str(viewer_root))
-    server = ThreadingHTTPServer((viewer_host, viewer_port), handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    return server
+def _notebook_directory() -> Path:
+    return _repo_root() / "applications" / "notebook_harness"
 
 
-def _start_vite_viewer(viewer_host: str, viewer_port: int) -> subprocess.Popen[str] | None:
-    viewer_root = _repo_root() / "applications" / "viewer"
-    vite_bin = viewer_root / "node_modules" / "vite" / "bin" / "vite.js"
-    env = os.environ.copy()
-    env.setdefault("BROWSER", "none")
-    env.setdefault("CHOKIDAR_USEPOLLING", "true")
-    env.setdefault("CHOKIDAR_INTERVAL", env.get("VITE_POLLING_INTERVAL_MS", "300"))
+def _start_notebook_runtime(notebook_host: str, notebook_port: int) -> NotebookServerLaunch:
+    """Start one marimo server over the whole notebook directory.
 
-    node_binary = shutil.which("node")
-    if vite_bin.exists() and node_binary:
-        return subprocess.Popen(
-            [
-                node_binary,
-                str(vite_bin),
-                "--host",
-                viewer_host,
-                "--port",
-                str(viewer_port),
-                "--strictPort",
-            ],
-            cwd=str(viewer_root),
-            env=env,
-            text=True,
-        )
-
-    npm_binary = shutil.which("npm.cmd") or shutil.which("npm")
-    if not npm_binary:
-        return None
-
-    return subprocess.Popen(
+    Directory-rooted rather than per-notebook: marimo serves a file browser at
+    the root and opens any notebook via `?file=`, so switching between bots is
+    navigation rather than a new process.
+    """
+    process = subprocess.Popen(
         [
-            npm_binary,
-            "run",
-            "dev",
-            "--",
+            sys.executable,
+            "-m",
+            "marimo",
+            "edit",
+            str(_notebook_directory()),
+            "--headless",
             "--host",
-            viewer_host,
+            notebook_host,
             "--port",
-            str(viewer_port),
-            "--strictPort",
+            str(notebook_port),
+            # Loopback-only server; the token would not reach the browser we
+            # open, and marimo binds 127.0.0.1 by default.
+            "--no-token",
         ],
-        cwd=str(viewer_root),
-        env=env,
+        cwd=str(_repo_root()),
         text=True,
     )
 
+    if _wait_for_port(notebook_host, notebook_port, timeout_seconds=20.0):
+        return NotebookServerLaunch(
+            process=process,
+            message=f"Notebooks are running at http://{notebook_host}:{notebook_port}",
+        )
 
-def _start_viewer_runtime(viewer_host: str, viewer_port: int) -> ViewerLaunchResult:
-    vite_process = _start_vite_viewer(viewer_host, viewer_port)
-    if vite_process is not None:
-        if _wait_for_port(viewer_host, viewer_port, timeout_seconds=10.0):
-            return ViewerLaunchResult(
-                process=vite_process,
-                message=f"Viewer dev server is running with Vite at http://{viewer_host}:{viewer_port}",
-            )
-
-        vite_process.terminate()
-        try:
-            vite_process.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            vite_process.kill()
-        raise RuntimeError(f"Vite viewer failed to start at http://{viewer_host}:{viewer_port}")
-
-    return ViewerLaunchResult(
-        server=_start_viewer_server(viewer_host, viewer_port),
-        message=f"Viewer is running in static mode at http://{viewer_host}:{viewer_port} (install applications/viewer dependencies for Vite live reload)",
+    process.terminate()
+    try:
+        process.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        process.kill()
+    return NotebookServerLaunch(
+        process=None,
+        message=(
+            f"marimo did not start at http://{notebook_host}:{notebook_port}. "
+            "Install the notebook extras with `uv sync --extra notebooks`."
+        ),
     )
 
 
-def _stop_viewer_runtime(viewer_launch: ViewerLaunchResult) -> None:
-    if viewer_launch.server is not None:
-        viewer_launch.server.shutdown()
-        viewer_launch.server.server_close()
-
-    if viewer_launch.process is not None:
-        viewer_launch.process.terminate()
+def _stop_notebook_runtime(notebook_launch: NotebookServerLaunch) -> None:
+    if notebook_launch.process is not None:
+        notebook_launch.process.terminate()
         try:
-            viewer_launch.process.wait(timeout=3)
+            notebook_launch.process.wait(timeout=3)
         except subprocess.TimeoutExpired:
-            viewer_launch.process.kill()
+            notebook_launch.process.kill()
+
 
 
 def _open_default_browser(url: str) -> None:
@@ -661,16 +601,16 @@ def start_backend_process(host: str, port: int, env: dict[str, str] | None = Non
 def run() -> None:
     host = os.getenv("TICKET_TO_RIDE_HOST", "127.0.0.1")
     port = int(os.getenv("TICKET_TO_RIDE_PORT", "8000"))
-    viewer_host = os.getenv("TICKET_TO_RIDE_VIEWER_HOST", "127.0.0.1")
-    viewer_port = int(os.getenv("TICKET_TO_RIDE_VIEWER_PORT", "4173"))
+    notebook_host = os.getenv("TICKET_TO_RIDE_NOTEBOOK_HOST", "127.0.0.1")
+    notebook_port = int(os.getenv("TICKET_TO_RIDE_NOTEBOOK_PORT", "2718"))
     os.environ.setdefault("POCKETBASE_ADMIN_EMAIL", pocketbase_admin_email())
     os.environ.setdefault("POCKETBASE_ADMIN_PASSWORD", pocketbase_admin_password())
     pocketbase_launch = start_pocketbase_process()
     if pocketbase_launch.message:
         print(pocketbase_launch.message)
-    viewer_launch = _start_viewer_runtime(viewer_host, viewer_port)
-    if viewer_launch.message:
-        print(viewer_launch.message)
+    notebook_launch = _start_notebook_runtime(notebook_host, notebook_port)
+    if notebook_launch.message:
+        print(notebook_launch.message)
     backend_process: subprocess.Popen[str] | None = None
     bot_api_launch = BotApiLaunchResult(process=None, started=False, reachable=False)
     backend_env = os.environ.copy()
@@ -712,9 +652,9 @@ def run() -> None:
             except LoggerClientError as exc:
                 print(f"Skipping bootstrap match creation because the backend API is unavailable: {exc}")
 
-        viewer_url = build_viewer_url(viewer_host, viewer_port, host, port)
-        _wait_for_port(viewer_host, viewer_port)
-        _open_default_browser(viewer_url)
+        notebook_url = build_notebook_url(notebook_host, notebook_port)
+        _wait_for_port(notebook_host, notebook_port)
+        _open_default_browser(notebook_url)
         if pocketbase_launch.reachable or pocketbase_is_reachable():
             print(f"PocketBase admin UI available at {pocketbase_url()}")
         else:
@@ -727,7 +667,7 @@ def run() -> None:
         if backend_process is not None:
             backend_process.wait()
     finally:
-        _stop_viewer_runtime(viewer_launch)
+        _stop_notebook_runtime(notebook_launch)
         _terminate_process(backend_process)
         _terminate_process(bot_api_launch.process)
         _terminate_process(pocketbase_launch.process)

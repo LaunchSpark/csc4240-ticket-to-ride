@@ -10,10 +10,9 @@ from ticket_to_ride.runtime.cli import (
     bot_api_is_reachable,
     bootstrap_managed_random_match_via_api,
     seed_match_if_empty_via_api,
-    ViewerRequestHandler,
-    ViewerLaunchResult,
+    NotebookServerLaunch,
     BotApiLaunchResult,
-    build_viewer_url,
+    build_notebook_url,
     ensure_pocketbase_schema,
     ensure_pocketbase_superuser,
     pocketbase_admin_email,
@@ -32,17 +31,11 @@ from ticket_to_ride.runtime.cli import (
 
 
 class RuntimeCliTests(unittest.TestCase):
-    def test_build_viewer_url_points_viewer_to_backend_api(self) -> None:
-        url = build_viewer_url("127.0.0.1", 4173, "127.0.0.1", 8000)
-        self.assertEqual(url, "http://127.0.0.1:4173/index.html?api_base=http%3A%2F%2F127.0.0.1%3A8000")
-
-    def test_viewer_request_handler_serves_jsx_as_javascript(self) -> None:
-        self.assertEqual(ViewerRequestHandler.extensions_map[".jsx"], "text/javascript")
-
-    def test_viewer_request_handler_identifies_app_shell_routes(self) -> None:
-        self.assertTrue(ViewerRequestHandler.should_serve_app_shell("/bots"))
-        self.assertFalse(ViewerRequestHandler.should_serve_app_shell("/components/viewer-shell.css"))
-        self.assertFalse(ViewerRequestHandler.should_serve_app_shell("/index.html"))
+    def test_build_notebook_url_points_at_the_marimo_file_browser(self) -> None:
+        # marimo serves its file browser at the root; notebooks reach the
+        # backend on their own, so no api_base query is threaded through.
+        url = build_notebook_url("127.0.0.1", 2718)
+        self.assertEqual(url, "http://127.0.0.1:2718/")
 
     def test_pocketbase_url_defaults_to_admin_ui(self) -> None:
         self.assertEqual(pocketbase_url(), "http://127.0.0.1:8090/_/")
@@ -283,7 +276,7 @@ class RuntimeCliTests(unittest.TestCase):
         )
 
     def test_run_starts_backend_then_seeds_then_opens_browser(self) -> None:
-        fake_viewer_server = MagicMock()
+        fake_notebook_process = MagicMock()
         fake_backend_process = MagicMock()
         fake_backend_process.poll.return_value = None
         fake_backend_process.wait.side_effect = [KeyboardInterrupt(), None]
@@ -292,8 +285,8 @@ class RuntimeCliTests(unittest.TestCase):
 
         with patch("ticket_to_ride.runtime.cli.start_pocketbase_process", return_value=MagicMock(message=None, reachable=False, process=None)), \
              patch(
-                 "ticket_to_ride.runtime.cli._start_viewer_runtime",
-                 return_value=ViewerLaunchResult(server=fake_viewer_server, message=None),
+                 "ticket_to_ride.runtime.cli._start_notebook_runtime",
+                 return_value=NotebookServerLaunch(process=fake_notebook_process, message=None),
              ), \
              patch("ticket_to_ride.runtime.cli.start_bot_api_process") as start_bot_api, \
              patch(
@@ -313,12 +306,11 @@ class RuntimeCliTests(unittest.TestCase):
         self.assertEqual(startup_order[:3], ["backend", "seed", "browser"])
         self.assertEqual(backend_envs[0]["MATCH_LOG_STORAGE_BACKEND"], "memory")
         start_bot_api.assert_not_called()
-        fake_viewer_server.shutdown.assert_called_once()
-        fake_viewer_server.server_close.assert_called_once()
+        fake_notebook_process.terminate.assert_called_once()
         fake_backend_process.terminate.assert_called_once()
 
     def test_run_with_flag_starts_backend_then_bot_api_then_bootstraps_then_opens_browser(self) -> None:
-        fake_viewer_server = MagicMock()
+        fake_notebook_process = MagicMock()
         fake_backend_process = MagicMock()
         fake_backend_process.poll.return_value = None
         fake_backend_process.wait.side_effect = [KeyboardInterrupt(), None]
@@ -337,8 +329,8 @@ class RuntimeCliTests(unittest.TestCase):
         with patch.dict("os.environ", {"TICKET_TO_RIDE_ENABLE_BOT_API": "1"}), \
              patch("ticket_to_ride.runtime.cli.start_pocketbase_process", return_value=MagicMock(message=None, reachable=False, process=None)), \
              patch(
-                 "ticket_to_ride.runtime.cli._start_viewer_runtime",
-                 return_value=ViewerLaunchResult(server=fake_viewer_server, message=None),
+                 "ticket_to_ride.runtime.cli._start_notebook_runtime",
+                 return_value=NotebookServerLaunch(process=fake_notebook_process, message=None),
              ), \
              patch("ticket_to_ride.runtime.cli.start_bot_api_process", side_effect=lambda: startup_order.append("bot_api") or fake_bot_api_launch), \
              patch(
@@ -357,13 +349,12 @@ class RuntimeCliTests(unittest.TestCase):
 
         self.assertEqual(startup_order[:4], ["backend", "bot_api", "bootstrap", "browser"])
         self.assertEqual(backend_envs[0]["MATCH_LOG_STORAGE_BACKEND"], "memory")
-        fake_viewer_server.shutdown.assert_called_once()
-        fake_viewer_server.server_close.assert_called_once()
+        fake_notebook_process.terminate.assert_called_once()
         fake_backend_process.terminate.assert_called_once()
         fake_bot_api_process.terminate.assert_called_once()
 
     def test_run_raises_when_managed_match_bootstrap_fails(self) -> None:
-        fake_viewer_server = MagicMock()
+        fake_notebook_process = MagicMock()
         fake_backend_process = MagicMock()
         fake_backend_process.poll.return_value = None
         fake_bot_api_process = MagicMock()
@@ -379,8 +370,8 @@ class RuntimeCliTests(unittest.TestCase):
         with patch.dict("os.environ", {"TICKET_TO_RIDE_ENABLE_BOT_API": "1"}), \
              patch("ticket_to_ride.runtime.cli.start_pocketbase_process", return_value=MagicMock(message=None, reachable=False, process=None)), \
              patch(
-                 "ticket_to_ride.runtime.cli._start_viewer_runtime",
-                 return_value=ViewerLaunchResult(server=fake_viewer_server, message=None),
+                 "ticket_to_ride.runtime.cli._start_notebook_runtime",
+                 return_value=NotebookServerLaunch(process=fake_notebook_process, message=None),
              ), \
              patch("ticket_to_ride.runtime.cli.start_backend_process", return_value=fake_backend_process), \
              patch("ticket_to_ride.runtime.cli.start_bot_api_process", return_value=fake_bot_api_launch), \
@@ -394,8 +385,7 @@ class RuntimeCliTests(unittest.TestCase):
                 run()
 
         self.assertIn("Unable to inspect existing backend matches", str(exc.exception))
-        fake_viewer_server.shutdown.assert_called_once()
-        fake_viewer_server.server_close.assert_called_once()
+        fake_notebook_process.terminate.assert_called_once()
         fake_backend_process.terminate.assert_called_once()
         fake_bot_api_process.terminate.assert_called_once()
 
