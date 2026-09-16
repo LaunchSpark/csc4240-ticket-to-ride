@@ -21,9 +21,11 @@ Browser
 
 ## Who Owns What
 
-- `applications/viewer`
-  - operator UI for replays and the bot registry
-  - talks to the main backend API over HTTP
+- `applications/notebook_harness` (marimo notebooks)
+  - operator UI for replays, the bot directory, and PocketBase queries
+  - one directory-rooted `marimo edit` server; notebooks open via `?file=`
+  - talks to the main backend API over HTTP for writes, and reads PocketBase's
+    SQLite directly (read-only) for SQL cells
 - `services/native-runtime/src/ticket_to_ride/backend/app.py`
   - HTTP entrypoint for `/bots`, `/matches`, and `/managed-matches`
 - `services/native-runtime/src/ticket_to_ride/backend/runtime/`
@@ -40,17 +42,17 @@ Browser
 - `applications/notebook_harness`
   - pure-Python test harness for bot notebooks: builds in-process games, renders GraphWidget-ready board state from an in-memory turn log
   - no dependency on the backend, PocketBase, or HTTP — bot notebooks run fully offline
-- `services/native-runtime/src/ticket_to_ride/backend/notebook_launcher.py`
-  - spawns/reuses one `marimo edit` server per bot notebook, launched from the viewer's Bots page via `POST /notebooks/{bot_id}/launch`
+- `services/native-runtime/src/ticket_to_ride/runtime/cli.py`
+  - `uv run run` starts PocketBase, the backend, and one shared marimo server
 
 ## Network Boundaries
 
-- Frontend -> main backend API: HTTP
+- Notebooks -> main backend API: HTTP
 - Main backend API -> PocketBase: repository abstraction backed by PocketBase HTTP APIs
 - Main backend runtime -> external bot API: HTTP through `BotApiExecutor`
 - Main backend runtime -> engine: in-process calls
 - External bot API -> bot plugin system: in-process calls
-- Frontend -> main backend API `/notebooks/{bot_id}/launch` -> local `marimo edit` subprocess: process spawn, not HTTP
+- Notebooks -> PocketBase SQLite: direct read-only file access, for SQL cells only
 
 ## Runtime Package Layout
 

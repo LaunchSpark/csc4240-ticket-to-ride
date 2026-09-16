@@ -28,7 +28,7 @@ ticket_to_ride/
 ├── pyproject.toml
 ├── uv.lock
 ├── services/native-runtime/src/ticket_to_ride/
-├── applications/viewer/
+├── applications/notebook_harness/
 ├── integrations/external/
 ├── operations/data/
 ├── operations/tools/
@@ -56,9 +56,25 @@ Bot code is quarantined under `integrations/external/` so the folder layout clea
 
 These files are kept for reference and integration work, but they are not part of the native package contract.
 
-## Viewer
+## Notebooks
 
-The first-party web viewer lives in `applications/viewer/`.
+The app surface is one marimo server over `applications/notebook_harness/`.
+`uv run run` starts it alongside PocketBase and the backend; to run it on its
+own:
+
+```bash
+uv run --extra notebooks marimo edit applications/notebook_harness
+```
+
+marimo serves a file browser at `/` and opens any notebook via
+`?file=<name>.py`. Three surfaces live there:
+
+- `bots.py` — local and remote bot directory, bot creation, connections
+- `matches.py` — stored matches queried from PocketBase in SQL cells
+- `replay.py` — stored match playback
+
+Bot notebooks live in `integrations/external/bots/`; point the same command at
+that directory to browse them instead.
 
 ## PocketBase
 
