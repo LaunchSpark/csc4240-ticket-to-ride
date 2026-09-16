@@ -125,7 +125,6 @@ minimum keep of one.
   mutate the game.
 - Each chance outcome is resolved before the bot makes the next decision.
 - Leaf actions are compact, serializable, deterministic, and replayable.
-- A random bot is a one-liner.
 
 ### What must be fixed
 
