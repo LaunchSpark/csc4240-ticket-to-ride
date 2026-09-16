@@ -120,16 +120,19 @@ class NewBotApiTests(unittest.TestCase):
         self.notebook_launcher = FakeNotebookLauncher()
         self.client = build_client(self.repository, [], {}, notebook_launcher=self.notebook_launcher)
 
-    def test_new_bot_is_scaffolded_and_its_notebook_opened(self) -> None:
+    def test_new_bot_is_scaffolded_and_returns_its_notebook_filename(self) -> None:
+        # The response carries a filename, not a URL: with one shared marimo
+        # server the caller composes `?file=<notebook>` itself, so the backend
+        # no longer needs to know how notebooks are served.
         scaffolded = ScaffoldedBot(bot_id="my_cool_bot", name="My Cool Bot", path="/repo/bots/my_cool_bot.py")
 
         with patch("ticket_to_ride.backend.service.scaffold_bot", return_value=scaffolded) as scaffold:
             response = self.client.post("/bots/new", json={"name": "My Cool Bot"})
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"botId": "my_cool_bot", "url": "http://127.0.0.1:2718"})
+        self.assertEqual(response.json(), {"botId": "my_cool_bot", "notebook": "my_cool_bot.py"})
         scaffold.assert_called_once_with("My Cool Bot", existing_bot_ids=set())
-        self.assertEqual(self.notebook_launcher.launch_calls, [("my_cool_bot", "/repo/bots/my_cool_bot.py")])
+        self.assertEqual(self.notebook_launcher.launch_calls, [])
 
     def test_invalid_bot_name_returns_bad_request(self) -> None:
         with patch("ticket_to_ride.backend.service.scaffold_bot", side_effect=BotScaffoldError("Bot name is required.")):

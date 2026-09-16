@@ -61,7 +61,7 @@ class BotCreateRequest(BaseModel):
 
 class BotCreateResponse(BaseModel):
     botId: str
-    url: str
+    notebook: str
 
 
 class ConnectionCreateRequest(BaseModel):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -74,11 +75,16 @@ def list_bot_directory(directory: BotDirectory) -> BotListResponse:
     )
 
 
-def create_bot(directory: BotDirectory, notebook_launcher: NotebookLauncher, name: str) -> BotCreateResponse:
+def create_bot(directory: BotDirectory, name: str) -> BotCreateResponse:
+    """Scaffold a bot notebook and report where it landed.
+
+    Returns the notebook's filename rather than a URL: notebooks are served by
+    one shared marimo server, so the caller composes `?file=<notebook>` and the
+    backend stays out of the business of spawning and addressing servers.
+    """
     existing = {bot.bot_id for bot in directory.list_all().bots if bot.source == "local"}
     scaffolded = scaffold_bot(name, existing_bot_ids=existing)
-    url = notebook_launcher.launch(scaffolded.bot_id, scaffolded.path)
-    return BotCreateResponse(botId=scaffolded.bot_id, url=url)
+    return BotCreateResponse(botId=scaffolded.bot_id, notebook=Path(scaffolded.path).name)
 
 
 def add_bot_connection(
