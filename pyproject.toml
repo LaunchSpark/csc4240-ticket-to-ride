@@ -16,7 +16,12 @@ dependencies = [
 
 [project.optional-dependencies]
 notebooks = [
-  "marimo>=0.9",
+  # Floor is load-bearing, not cosmetic: every notebook in this repo uses
+  # `with app.setup`, `@app.class_definition`, and `@app.function`, none of
+  # which parse on older marimo. A lower floor lets a clean resolve install a
+  # marimo that fails to open every bot and dashboard. Upper bound keeps the
+  # generated-file format (`__generated_with`) in step with what CI checks.
+  "marimo>=0.23.13,<0.24",
   "anywidget>=0.9",
   "wigglystuff>=0.1",
 ]
