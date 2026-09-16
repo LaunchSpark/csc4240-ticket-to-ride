@@ -9,7 +9,6 @@ from ticket_to_ride.backend.app import create_app
 from ticket_to_ride.backend.bot_catalog import BotCatalogError, BotCatalogRecord
 from ticket_to_ride.backend.bot_directory import BotDirectory
 from ticket_to_ride.backend.bot_scaffold import BotScaffoldError, ScaffoldedBot
-from ticket_to_ride.backend.notebook_launcher import NotebookLauncher
 from ticket_to_ride.backend.repository import InMemoryMatchRepository
 
 
@@ -51,16 +50,7 @@ class FailingCatalog:
         raise BotCatalogError("connection refused")
 
 
-class FakeNotebookLauncher(NotebookLauncher):
-    def __init__(self) -> None:
-        self.launch_calls = []
-
-    def launch(self, bot_id: str, notebook_path: str) -> str:
-        self.launch_calls.append((bot_id, notebook_path))
-        return "http://127.0.0.1:2718"
-
-
-def build_client(repository, local_records, remote_catalogs, notebook_launcher=None):
+def build_client(repository, local_records, remote_catalogs):
     directory = BotDirectory(
         repository,
         local_catalog_factory=lambda: StaticCatalog(local_records),
@@ -70,7 +60,6 @@ def build_client(repository, local_records, remote_catalogs, notebook_launcher=N
         create_app(
             repository=repository,
             bot_directory=directory,
-            notebook_launcher=notebook_launcher or FakeNotebookLauncher(),
         )
     )
 
@@ -117,8 +106,7 @@ class BotListingApiTests(unittest.TestCase):
 class NewBotApiTests(unittest.TestCase):
     def setUp(self) -> None:
         self.repository = InMemoryMatchRepository()
-        self.notebook_launcher = FakeNotebookLauncher()
-        self.client = build_client(self.repository, [], {}, notebook_launcher=self.notebook_launcher)
+        self.client = build_client(self.repository, [], {})
 
     def test_new_bot_is_scaffolded_and_returns_its_notebook_filename(self) -> None:
         # The response carries a filename, not a URL: with one shared marimo
@@ -132,7 +120,6 @@ class NewBotApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"botId": "my_cool_bot", "notebook": "my_cool_bot.py"})
         scaffold.assert_called_once_with("My Cool Bot", existing_bot_ids=set())
-        self.assertEqual(self.notebook_launcher.launch_calls, [])
 
     def test_invalid_bot_name_returns_bad_request(self) -> None:
         with patch("ticket_to_ride.backend.service.scaffold_bot", side_effect=BotScaffoldError("Bot name is required.")):

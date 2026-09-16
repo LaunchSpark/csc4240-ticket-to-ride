@@ -22,11 +22,9 @@ from ticket_to_ride.backend.models import (
     ConnectionSummary,
     MatchPayload,
     MatchSummary,
-    NotebookLaunchResponse,
     PlayerRecord,
     RoundPayload,
 )
-from ticket_to_ride.backend.notebook_launcher import NotebookLauncher
 from ticket_to_ride.backend.repository import MatchRepository
 
 
@@ -136,27 +134,6 @@ def remove_bot_connection(repository: MatchRepository, connection_id: str) -> No
         repository.delete_bot_connection(connection_id)
     except KeyError as exc:
         raise ConnectionNotFoundError(f"Unknown bot connection '{connection_id}'.") from exc
-
-
-def launch_notebook(
-    directory: BotDirectory,
-    notebook_launcher: NotebookLauncher,
-    bot_id: str,
-) -> NotebookLaunchResponse:
-    requested_bot_id = bot_id.strip()
-    if not requested_bot_id:
-        raise ValueError("Bot ID is required.")
-
-    try:
-        bot = directory.resolve(requested_bot_id)
-    except KeyError as exc:
-        raise BotNotFoundError(f"Unknown bot '{requested_bot_id}'.") from exc
-
-    if bot.source != "local" or not bot.module_path:
-        raise ValueError("Only local bots have notebooks to open.")
-
-    url = notebook_launcher.launch(bot.bot_id, bot.module_path)
-    return NotebookLaunchResponse(botId=bot.bot_id, url=url)
 
 
 def create_match(

@@ -30,7 +30,6 @@ from ticket_to_ride.backend.models import (
     MatchFinalizeResponse,
     MatchPayload,
     MatchSummary,
-    NotebookLaunchResponse,
     RoundClockView,
     RoundCreateRequest,
     RoundCreateResponse,
@@ -38,7 +37,6 @@ from ticket_to_ride.backend.models import (
     TurnCreateRequest,
     TurnCreateResponse,
 )
-from ticket_to_ride.backend.notebook_launcher import NotebookLauncher
 from ticket_to_ride.backend.pocketbase import PocketBaseError, build_repository_from_env
 from ticket_to_ride.backend.repository import MatchRepository
 from ticket_to_ride.backend.service import (
@@ -53,7 +51,6 @@ from ticket_to_ride.backend.service import (
     finalize_match,
     get_culled_board,
     get_match,
-    launch_notebook,
     list_bot_directory,
     list_matches,
     remove_bot_connection,
@@ -71,13 +68,11 @@ def create_app(
     repository: Optional[MatchRepository] = None,
     bot_directory: Optional[BotDirectory] = None,
     runtime_manager: Optional[ManagedMatchRuntimeManager] = None,
-    notebook_launcher: Optional[NotebookLauncher] = None,
 ) -> FastAPI:
     app = FastAPI(title="Ticket to Ride Match Logger", version="1.0.0")
     app.state.match_repository = repository or build_repository_from_env()
     app.state.bot_directory = bot_directory or BotDirectory(app.state.match_repository)
     app.state.runtime_manager = runtime_manager
-    app.state.notebook_launcher = notebook_launcher or NotebookLauncher()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_origins_from_env(),
@@ -122,9 +117,6 @@ def create_app(
     def get_bot_directory() -> BotDirectory:
         return app.state.bot_directory
 
-    def get_notebook_launcher() -> NotebookLauncher:
-        return app.state.notebook_launcher
-
     def get_runtime_manager() -> ManagedMatchRuntimeManager:
         if app.state.runtime_manager is None:
             app.state.runtime_manager = ManagedMatchRuntimeManager(
@@ -168,19 +160,6 @@ def create_app(
         except ConnectionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         return {"status": "deleted"}
-
-    @app.post("/notebooks/{bot_id}/launch", response_model=NotebookLaunchResponse)
-    def post_launch_notebook(
-        bot_id: str,
-        directory: BotDirectory = Depends(get_bot_directory),
-        notebook_launcher: NotebookLauncher = Depends(get_notebook_launcher),
-    ) -> NotebookLaunchResponse:
-        try:
-            return launch_notebook(directory, notebook_launcher, bot_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        except BotNotFoundError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.post("/matches", response_model=MatchCreateResponse)
     def post_match(
