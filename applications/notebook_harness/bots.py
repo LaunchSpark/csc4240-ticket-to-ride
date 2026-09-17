@@ -57,8 +57,9 @@ def notebook_link(notebook):
     """Deep link opening a notebook in this same marimo server.
 
     Takes the filename — see local_bot_rows on why the bot id will not do.
+    The server is rooted at the repository, so the path is repo-relative.
     """
-    return f"?file={notebook}"
+    return f"?file=integrations/external/bots/{notebook}"
 
 
 @app.cell(hide_code=True)
@@ -66,6 +67,8 @@ def _():
     mo.md(
         """
     # Bots
+    **[+ New bot](#new-bot)**
+
     Local bots are discovered on disk and need no backend. Remote bots and
     connections come from the running backend — start it with `uv run run`.
     """
@@ -135,7 +138,12 @@ def _(directory, directory_error):
 def _():
     new_bot_name = mo.ui.text(label="New bot name", placeholder="My Bot")
     create_button = mo.ui.run_button(label="Create bot")
-    mo.hstack([new_bot_name, create_button], align="end", justify="start")
+    mo.vstack([
+        # Target of the "New bot" link in the header.
+        mo.Html('<h3 id="new-bot">New bot</h3>'),
+        mo.md("Copies the bot template into `integrations/external/bots/`."),
+        mo.hstack([new_bot_name, create_button], align="end", justify="start"),
+    ])
     return create_button, new_bot_name
 
 

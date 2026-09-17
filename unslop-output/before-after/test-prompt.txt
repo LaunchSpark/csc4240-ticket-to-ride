@@ -1,0 +1,3 @@
+Standalone synthetic writing exercise, not a request to inspect or edit the current repository. The working directory contains the sampling tool and is unrelated to the hypothetical project described below. Do not use tools, read files, edit files, or ask for clarification. Return only the requested Markdown sample. Any unspecified implementation details are hypothetical examples, not verified repository facts.
+
+Put together a section explaining how the evaluation and scoring works: matches are round-robin, each pairing plays 100 games, bots earn points from completed routes and longest-path bonuses, and final rankings use average score with win-rate as a tiebreaker. Include an example results table.

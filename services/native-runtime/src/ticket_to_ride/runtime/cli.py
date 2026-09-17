@@ -39,7 +39,7 @@ class PocketBaseLaunchResult:
 
 @dataclass
 class NotebookServerLaunch:
-    """One marimo server serving every notebook in the harness directory."""
+    """One marimo server serving every notebook in the repository."""
 
     process: subprocess.Popen[str] | None = None
     message: str | None = None
@@ -128,11 +128,15 @@ def _wait_for_port(host: str, port: int, timeout_seconds: float = 5.0) -> bool:
 
 
 def _notebook_directory() -> Path:
-    return _repo_root() / "applications" / "notebook_harness"
+    # The repo root, not applications/notebook_harness: bot notebooks live in
+    # integrations/external/bots and research dashboards in operations/research,
+    # and marimo refuses ?file= paths outside the served directory. Its file
+    # browser lists only marimo notebooks, so the wider root adds no clutter.
+    return _repo_root()
 
 
 def _start_notebook_runtime(notebook_host: str, notebook_port: int) -> NotebookServerLaunch:
-    """Start one marimo server over the whole notebook directory.
+    """Start one marimo server over every notebook in the repository.
 
     Directory-rooted rather than per-notebook: marimo serves a file browser at
     the root and opens any notebook via `?file=`, so switching between bots is

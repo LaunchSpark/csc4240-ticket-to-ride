@@ -67,7 +67,10 @@ class BotsNotebookTests(unittest.TestCase):
     def test_notebook_link_is_a_relative_file_query(self) -> None:
         module = load_notebook()
 
-        self.assertEqual(module.notebook_link("random_bot.py"), "?file=random_bot.py")
+        self.assertEqual(
+            module.notebook_link("random_bot.py"),
+            "?file=integrations/external/bots/random_bot.py",
+        )
 
 
 if __name__ == "__main__":
