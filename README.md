@@ -9,18 +9,18 @@ The code includes a game engine, seven bot implementations, marimo notebooks for
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and use Python 3.12 or newer. Run these commands from the repository root:
 
 ```bash
-uv sync --extra notebooks
-uv run --extra notebooks marimo edit .
+uv sync
+uv run marimo edit .
 ```
 
 In marimo's file browser, open `integrations/external/bots/random_bot.py`. Choose a map, bots for at least two seats, and a round count. The notebook runs the selected games and provides playback controls, the route map, player hands, tickets, and scores. Changing the match controls runs a new series.
 
-This demo runs in memory without PocketBase or the backend. The `notebooks` extra is also needed for tests and bot scripts because several bot modules import marimo. JavaScript widget bundles are committed under `applications/notebook_harness/static/`; running the notebooks does not require a Node.js build.
+This demo runs in memory without PocketBase or the backend. JavaScript widget bundles are committed under `applications/notebook_harness/static/`; running the notebooks does not require a Node.js build.
 
 For a game without opening a browser:
 
 ```bash
-uv run --extra notebooks python -c "import random; from external.bots.random_bot import RandomBot; from notebook_harness.game_runner import initialize_game; random.seed(7); game = initialize_game([RandomBot(), RandomBot()], map_name='classic', seed=7); game.play(); print(game.game.context.scores)"
+uv run python -c "import random; from external.bots.random_bot import RandomBot; from notebook_harness.game_runner import initialize_game; random.seed(7); game = initialize_game([RandomBot(), RandomBot()], map_name='classic', seed=7); game.play(); print(game.game.context.scores)"
 ```
 
 The output is a score dictionary keyed by `bot_0` and `bot_1`. The engine seed controls card and ticket shuffles; `random.seed(7)` separately fixes RandomBot's choices. Recorded games preserve both the engine seed and the action sequence for replay.
@@ -53,7 +53,7 @@ To keep match history and use the database notebooks, install a [PocketBase bina
 On macOS or Linux, make a downloaded binary executable with `chmod +x operations/tools/pocketbase/pocketbase`. The launcher also searches `PATH`; set `POCKETBASE_BINARY` to an absolute executable path to use another location.
 
 ```bash
-uv run --extra notebooks run
+uv run run
 ```
 
 The launcher starts PocketBase when available, prepares its collections, starts the backend and marimo, and opens the notebook browser. When no stored replay matches exist, it creates a random-bot match with 10 rounds by default. Stop the launcher with `Ctrl+C` to stop the processes it started.
@@ -83,8 +83,8 @@ Local bots run through `act(view, legal_actions)`. The optional external HTTP bo
 The [bot lab](operations/research/bot_lab.py) runs FableBestBot against `qualifier`, `example`, or `random`. It alternates seats across games and uses consecutive engine seeds. For example, this runs 20 games against each of two opponents, for 40 games total:
 
 ```bash
-uv run --extra notebooks python operations/research/bot_lab.py --games 20 --opponents qualifier,example --seed-base 9000 --tag baseline
-uv run --extra notebooks marimo edit operations/research/bot_lab_dashboard.py
+uv run python operations/research/bot_lab.py --games 20 --opponents qualifier,example --seed-base 9000 --tag baseline
+uv run marimo edit operations/research/bot_lab_dashboard.py
 ```
 
 Results accumulate in `operations/research/results/`:
@@ -96,7 +96,7 @@ Results accumulate in `operations/research/results/`:
 The lab also accepts `--set KEY=VALUE` and `--sweep KEY=V1,V2,...` to vary FableBestBot's numeric settings. `--fresh` deletes the existing lab result files before a run. Export recorded decisions with:
 
 ```bash
-uv run --extra notebooks python operations/research/decision_export.py
+uv run python operations/research/decision_export.py
 ```
 
 This writes `operations/research/results/decisions.jsonl`, including the acting player's view, legal options, chosen action, and final outcome. Map analysis and its dashboard are described in [the research notes](operations/research/README.md).
@@ -108,10 +108,10 @@ For the course evaluation, report the bot versions, map, game count, seeds, seat
 The training tools use XGBoost's pairwise ranking objective to learn action preferences from recorded QualifierBot decisions. Generate a small local dataset and train a model with:
 
 ```bash
-uv sync --extra notebooks --extra xgb
-uv run --extra notebooks --extra xgb python operations/research/xg_data_pump.py --games 10 --seed-base 9000 --no-db
-uv run --extra notebooks --extra xgb python operations/research/train_xg_bot.py --limit 5000
-uv run --extra notebooks --extra xgb marimo edit operations/research/xg_bot_training_dashboard.py
+uv sync --extra xgb
+uv run --extra xgb python operations/research/xg_data_pump.py --games 10 --seed-base 9000 --no-db
+uv run --extra xgb python operations/research/train_xg_bot.py --limit 5000
+uv run --extra xgb marimo edit operations/research/xg_bot_training_dashboard.py
 ```
 
 `--no-db` skips backend logging while retaining local training outputs. The pump writes cached decision groups to `operations/research/results/xg_pump_feature_rows.jsonl`. Training writes `xg_bot_ranker.json` and `xg_bot_features.json` in that directory; XG Bot loads those files by default.
@@ -129,8 +129,8 @@ Implement `act(view, legal_actions)` and return one of the supplied actions. The
 ## Tests and source layout
 
 ```bash
-uv run --extra notebooks test
-uv run --extra notebooks python -m unittest discover -s integrations/external/tests
+uv run test
+uv run python -m unittest discover -s integrations/external/tests
 ```
 
 The first command runs `unittest` discovery in `quality/tests/`, covering engine rules, replay, bot behavior, backend APIs, runtime execution, notebook integration, and marimo file checks. The second runs the separate external integration suite. Include `--extra xgb` when exercising the optional training dependencies.

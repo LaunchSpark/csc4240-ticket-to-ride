@@ -12,10 +12,6 @@ dependencies = [
   "fastapi>=0.115,<1.0",
   "httpx>=0.28,<1.0",
   "uvicorn>=0.30,<1.0",
-]
-
-[project.optional-dependencies]
-notebooks = [
   # Floor is load-bearing, not cosmetic: every notebook in this repo uses
   # `with app.setup`, `@app.class_definition`, and `@app.function`, none of
   # which parse on older marimo. A lower floor lets a clean resolve install a
@@ -29,6 +25,8 @@ notebooks = [
   "sqlalchemy>=2.0,<3",
   "polars>=1.0,<2",
 ]
+
+[project.optional-dependencies]
 xgb = [
   "numpy>=2.0",
   "xgboost>=2.0,<4",

@@ -10,6 +10,12 @@ with app.setup:
 
     import marimo as mo
 
+    from notebook_harness.pocketbase_source import engine
+
+    # Read-only PocketBase connection; defining it here lists it in the
+    # data-sources panel and makes it selectable in SQL cells.
+    pocketbase = engine()
+
     _here = Path(__file__).resolve().parent
     _spec = importlib.util.spec_from_file_location("bot_lab", _here / "bot_lab.py")
     bot_lab = importlib.util.module_from_spec(_spec)

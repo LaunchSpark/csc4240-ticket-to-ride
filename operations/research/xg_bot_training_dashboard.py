@@ -13,6 +13,12 @@ with app.setup:
 
     import marimo as mo
 
+    from notebook_harness.pocketbase_source import engine
+
+    # Read-only PocketBase connection; defining it here lists it in the
+    # data-sources panel and makes it selectable in SQL cells.
+    pocketbase = engine()
+
     REPO = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(REPO / "integrations"))
 

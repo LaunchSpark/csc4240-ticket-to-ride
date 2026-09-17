@@ -1087,19 +1087,17 @@ name = "ticket-to-ride"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "anywidget" },
     { name = "fastapi" },
     { name = "httpx" },
-    { name = "uvicorn" },
-]
-
-[package.optional-dependencies]
-notebooks = [
-    { name = "anywidget" },
     { name = "marimo" },
     { name = "polars" },
     { name = "sqlalchemy" },
+    { name = "uvicorn" },
     { name = "wigglystuff" },
 ]
+
+[package.optional-dependencies]
 xgb = [
     { name = "numpy" },
     { name = "xgboost" },
@@ -1107,18 +1105,18 @@ xgb = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anywidget", marker = "extra == 'notebooks'", specifier = ">=0.9" },
+    { name = "anywidget", specifier = ">=0.9" },
     { name = "fastapi", specifier = ">=0.115,<1.0" },
     { name = "httpx", specifier = ">=0.28,<1.0" },
-    { name = "marimo", marker = "extra == 'notebooks'", specifier = ">=0.23.13,<0.24" },
+    { name = "marimo", specifier = ">=0.23.13,<0.24" },
     { name = "numpy", marker = "extra == 'xgb'", specifier = ">=2.0" },
-    { name = "polars", marker = "extra == 'notebooks'", specifier = ">=1.0,<2" },
-    { name = "sqlalchemy", marker = "extra == 'notebooks'", specifier = ">=2.0,<3" },
+    { name = "polars", specifier = ">=1.0,<2" },
+    { name = "sqlalchemy", specifier = ">=2.0,<3" },
     { name = "uvicorn", specifier = ">=0.30,<1.0" },
-    { name = "wigglystuff", marker = "extra == 'notebooks'", specifier = ">=0.1" },
+    { name = "wigglystuff", specifier = ">=0.1" },
     { name = "xgboost", marker = "extra == 'xgb'", specifier = ">=2.0,<4" },
 ]
-provides-extras = ["notebooks", "xgb"]
+provides-extras = ["xgb"]
 
 [[package]]
 name = "tomlkit"
