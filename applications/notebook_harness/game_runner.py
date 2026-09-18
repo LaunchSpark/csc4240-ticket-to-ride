@@ -366,7 +366,7 @@ class HarnessSeries:
         map_graph = self.games[0].game.context.get_map()
         result = (
             build_nodes(map_graph),
-            build_route_usage_edges(map_graph, counts),
+            build_route_usage_edges(map_graph, counts, games_included),
             {
                 "playerId": player_id,
                 "playerName": roster_entry["name"],

@@ -36,6 +36,16 @@ class GauntletTests(unittest.TestCase):
         self.assertLessEqual(g["seat0_win_rate"], 1.0)
         self.assertGreater(g["claim_entropy"], 0.5)
 
+    def test_most_contested_reports_claim_rate_per_game(self):
+        g = map_eval.gauntlet_profile("classic", games=4, seed_base=31000)
+
+        self.assertTrue(g["most_contested"])
+        for hotspot in g["most_contested"]:
+            self.assertIn("route", hotspot)
+            self.assertIsInstance(hotspot["route"], str)
+            self.assertGreater(hotspot["claim_rate"], 0.0)
+            self.assertLessEqual(hotspot["claim_rate"], 1.0)
+
     def test_profile_and_descriptor_vector(self):
         profile = map_eval.map_profile("classic", games=2, seed_base=32000)
         vector = map_eval.descriptor_vector(profile)

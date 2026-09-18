@@ -113,6 +113,7 @@ class RenderingTests(unittest.TestCase):
         edges = build_route_usage_edges(
             game_map,
             {"Seattle-Portland-1": 4, "Seattle-Portland-2": 2},
+            games_included=8,
         )
         by_id = {edge["id"]: edge for edge in edges}
 
@@ -122,11 +123,48 @@ class RenderingTests(unittest.TestCase):
             "Seattle-Portland-1", "Seattle-Portland-2"
         })
         self.assertEqual(busiest["opacity"], 1.0)
-        self.assertEqual(busiest["data"]["claimShare"], 4 / 6)
         self.assertEqual(second["data"]["normalizedClaims"], 0.5)
         self.assertAlmostEqual(second["opacity"], 0.54)
         self.assertEqual(unused["data"]["claimCount"], 0)
         self.assertEqual(unused["opacity"], 0.08)
+
+    def test_route_usage_claim_rate_is_share_of_games_not_share_of_claims(self) -> None:
+        """4 of 8 games is 50%, even though it is 2/3 of the 6 total claims."""
+        game_map = MapGraph(player_count=2)
+        edges = build_route_usage_edges(
+            game_map,
+            {"Seattle-Portland-1": 4, "Seattle-Portland-2": 2},
+            games_included=8,
+        )
+        by_id = {edge["id"]: edge for edge in edges}
+
+        self.assertEqual(by_id["Seattle-Portland-1"]["data"]["claimRate"], 0.5)
+        self.assertEqual(by_id["Seattle-Portland-2"]["data"]["claimRate"], 0.25)
+        self.assertEqual(by_id["Seattle-Portland-1"]["data"]["gamesIncluded"], 8)
+
+    def test_route_usage_claim_rate_never_exceeds_one(self) -> None:
+        """Final-snapshot ownership is one seat per game, so the rate is a
+        genuine probability - the property share-of-all-claims never had."""
+        game_map = MapGraph(player_count=2)
+        edges = build_route_usage_edges(
+            game_map,
+            {"Seattle-Portland-1": 5, "Seattle-Portland-2": 5},
+            games_included=5,
+        )
+
+        for edge in edges:
+            self.assertLessEqual(edge["data"]["claimRate"], 1.0)
+            self.assertGreaterEqual(edge["data"]["claimRate"], 0.0)
+
+    def test_route_usage_with_no_games_reports_zero_rates(self) -> None:
+        game_map = MapGraph(player_count=2)
+        edges = build_route_usage_edges(game_map, {}, games_included=0)
+
+        self.assertTrue(edges)
+        for edge in edges:
+            self.assertEqual(edge["data"]["claimRate"], 0.0)
+            self.assertEqual(edge["data"]["gamesIncluded"], 0)
+            self.assertEqual(edge["opacity"], 0.08)
 
 
 class CulledRenderingTests(unittest.TestCase):

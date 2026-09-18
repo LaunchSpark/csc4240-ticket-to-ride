@@ -12350,7 +12350,7 @@ function render3({ model, el }) {
     const coords = graph_coords_from_event(ev);
     const node = node_at(coords.x, coords.y);
     const link = node ? null : link_at(coords.x, coords.y);
-    const usage = link && link.data && Number.isFinite(link.data.claimCount) ? `${link.data.claimCount} claims \xB7 ${(100 * link.data.claimShare).toFixed(1)}% of claims` : "";
+    const usage = link && link.data && Number.isFinite(link.data.claimCount) ? `claimed in ${link.data.claimCount} of ${link.data.gamesIncluded} games \xB7 ${(100 * link.data.claimRate).toFixed(0)}%` : "";
     const label = node ? node.name : link ? `${link.data && link.data.length ? `${link.id} (${link.data.length})` : link.id}${usage ? ` \xB7 ${usage}` : ""}` : "";
     if (label) {
       const rect = canvas.getBoundingClientRect();
@@ -12661,7 +12661,7 @@ function render3({ model, el }) {
     plot.centerAt(center.x, center.y);
     plot.zoom(zoom_level);
   }, 500);
-  const build_tag = true ? "20260916-182044Z" : "dev";
+  const build_tag = true ? "20260917-234417Z" : "dev";
   console.log(`route_graph_widget build ${build_tag}`);
   window.__routeGraphDebug = { plot, el, build: build_tag };
   return () => {

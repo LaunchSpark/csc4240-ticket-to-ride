@@ -489,7 +489,7 @@ function render({ model, el }) {
         const link = node ? null : link_at(coords.x, coords.y);
 
         const usage = link && link.data && Number.isFinite(link.data.claimCount)
-            ? `${link.data.claimCount} claims · ${(100 * link.data.claimShare).toFixed(1)}% of claims`
+            ? `claimed in ${link.data.claimCount} of ${link.data.gamesIncluded} games · ${(100 * link.data.claimRate).toFixed(0)}%`
             : "";
         const label = node
             ? node.name

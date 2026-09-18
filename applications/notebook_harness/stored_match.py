@@ -242,7 +242,7 @@ class StoredMatchSeries:
         )
         result = (
             build_nodes(self._map_graph),
-            build_route_usage_edges(self._map_graph, counts),
+            build_route_usage_edges(self._map_graph, counts, games_included),
             {
                 "playerId": player_id,
                 "playerName": roster_entry["name"],

@@ -154,7 +154,13 @@ def _(profiles):
 def _(profiles):
     _rows = [
         {"map": p["map"],
-         "most contested routes": ", ".join(p["gameplay"]["most_contested"]),
+         # Profiles archived before most_contested carried a rate stored bare
+         # route id strings; keep reading those rather than crash on old files.
+         "most contested routes": ", ".join(
+             _h if isinstance(_h, str)
+             else f"{_h['route']} ({100 * _h['claim_rate']:.0f}% of games)"
+             for _h in p["gameplay"]["most_contested"]
+         ),
          "route length histogram": str(p["structural"]["route_length_hist"]),
          "color demand (claimed length)": str(p["gameplay"]["color_demand"])}
         for p in profiles

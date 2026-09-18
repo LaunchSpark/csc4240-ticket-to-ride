@@ -263,7 +263,13 @@ def gauntlet_profile(map_name: str, games: int = 40, seed_base: int = 20000) -> 
         "claim_entropy": round(entropy / math.log(route_count), 3) if route_count > 1 else 0.0,
         "critical_claim_fraction": round(bridge_claims / total_claims, 3) if total_claims else 0.0,
         "color_demand": {c: color_demand[c] for c in sorted(color_demand)},
-        "most_contested": [rid for rid, _ in claims_per_route.most_common(5)],
+        # claim_rate is the fraction of games in which the route was claimed at
+        # all. A route belongs to at most one seat per game, so the tally is
+        # already a game count; bare ids alone could not tell 95% from 12%.
+        "most_contested": [
+            {"route": rid, "claim_rate": round(count / games, 3)}
+            for rid, count in claims_per_route.most_common(5)
+        ],
     }
 
 

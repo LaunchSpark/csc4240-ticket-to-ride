@@ -228,29 +228,38 @@ def build_edges(
 def build_route_usage_edges(
     map_graph: MapGraph,
     claim_counts: Mapping[str, int],
+    games_included: int,
 ) -> List[Dict[str, Any]]:
     """Build an unclaimed board whose route opacity visualizes claim frequency.
 
-    ``claimShare`` is the route's fraction of all claims in the selected
-    sample. ``normalizedClaims`` divides by the most-claimed route, giving
-    the renderer a useful 0..1 heat scale even on maps with many routes. A
-    small display floor keeps never-claimed routes visible as map context.
+    ``claimRate`` is the fraction of sampled games in which the seat finished
+    holding the route — "claimed in 3 of 12 games", not "3% of all claims".
+    The counts come from final-snapshot ownership, where a route belongs to at
+    most one seat per game, so the tally is already a game count and dividing
+    by ``games_included`` is exact. That also bounds the rate to 0..1, which a
+    share of all claims could never mean.
+
+    ``normalizedClaims`` divides by the most-claimed route instead. It is a
+    display scale only: it keeps the heat readable on maps where no single
+    route breaks 30%. A small display floor keeps never-claimed routes visible
+    as map context.
     """
     edges = build_edges(map_graph, claimed_by={}, player_colors={})
-    total_claims = sum(max(0, int(count)) for count in claim_counts.values())
+    games = max(0, int(games_included))
     max_claims = max(
         (max(0, int(count)) for count in claim_counts.values()), default=0
     )
 
     for edge in edges:
         count = max(0, int(claim_counts.get(edge["id"], 0)))
-        share = count / total_claims if total_claims else 0.0
+        rate = count / games if games else 0.0
         normalized = count / max_claims if max_claims else 0.0
         edge["opacity"] = 0.08 + 0.92 * normalized
         edge["data"].update(
             {
                 "claimCount": count,
-                "claimShare": share,
+                "claimRate": rate,
+                "gamesIncluded": games,
                 "normalizedClaims": normalized,
             }
         )
