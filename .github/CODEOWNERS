@@ -1,0 +1,8 @@
+# Changes to repository automation need @LaunchSpark's approval. This guards
+# the ownership check itself: a pull request cannot edit the workflow, the
+# script, or .github/bot-owners to let its own changes through.
+#
+# Bot ownership lives in .github/bot-owners, not here, because GitHub never
+# lets authors approve their own pull requests as code owners.
+
+/.github/    @LaunchSpark

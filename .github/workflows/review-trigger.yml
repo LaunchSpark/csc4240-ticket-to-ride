@@ -1,0 +1,17 @@
+name: review-trigger
+
+# Reviews cannot start a trusted workflow directly: pull_request_review runs
+# the pull request's own copy of a workflow. This no-op run exists only so
+# bot-ownership.yml can react to it through workflow_run, which always runs
+# the copy on main.
+on:
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Review on ${{ github.event.pull_request.html_url }}"

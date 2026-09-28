@@ -1,0 +1,17 @@
+# Files each contributor may merge without another person's approval.
+# Same syntax as CODEOWNERS; the last matching pattern wins. Any other change
+# needs an approving review from one other collaborator. @LaunchSpark
+# maintains the repository and is exempt everywhere.
+#
+# Bots are discovered by a flat `*.py` glob, so ownership is by filename
+# prefix, not by subfolder: e.g. integrations/external/bots/david_route_bot.py
+
+*                                        @LaunchSpark
+
+# Shared class deliverables: anyone on the team.
+/deliverables/                           @LaunchSpark @David-Trigg-Lampkins @IsaiahStain05 @batrail
+
+# Each person's bots.
+/integrations/external/bots/david_*      @David-Trigg-Lampkins @LaunchSpark
+/integrations/external/bots/isaiah_*     @IsaiahStain05 @LaunchSpark
+/integrations/external/bots/batrail_*    @batrail @LaunchSpark

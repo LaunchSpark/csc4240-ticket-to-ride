@@ -1,0 +1,72 @@
+name: bot-ownership
+
+# Posts the "ownership" commit status that main's ruleset requires. It passes
+# when the author only changed their own bot files (.github/bot-owners), or
+# when another collaborator approved the latest commit.
+#
+# Both triggers run this workflow as it exists on main, so a pull request
+# cannot weaken it. PR code is never checked out or executed.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+  workflow_run:
+    workflows: [review-trigger]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: .github
+      - name: Evaluate and post status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          REVIEWED_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$PR" ]; then
+            PR=$(gh api --paginate "repos/$REPO/pulls?state=open" \
+              --jq ".[] | select(.head.sha == \"$REVIEWED_SHA\") | .number" | head -n1)
+            if [ -z "$PR" ]; then
+              echo "No open pull request at $REVIEWED_SHA; a newer push will be evaluated instead."
+              exit 0
+            fi
+          fi
+
+          pr_json=$(gh api "repos/$REPO/pulls/$PR")
+          SHA=$(jq -r .head.sha <<<"$pr_json")
+          AUTHOR=$(jq -r .user.login <<<"$pr_json")
+
+          # Latest non-comment review per reviewer, counted only when it is an
+          # approval of the current head commit by a collaborator other than
+          # the author.
+          APPROVALS=$(gh api --paginate --slurp "repos/$REPO/pulls/$PR/reviews" | jq \
+            --arg sha "$SHA" --arg author "$AUTHOR" '
+              add // []
+              | map(select(.state != "COMMENTED"))
+              | group_by(.user.login) | map(max_by(.submitted_at))
+              | map(select(.state == "APPROVED" and .commit_id == $sha
+                  and .user.login != $author
+                  and (.author_association | IN("OWNER", "MEMBER", "COLLABORATOR"))))
+              | length')
+
+          if gh api --paginate "repos/$REPO/pulls/$PR/files" \
+               --jq '.[] | .filename, (.previous_filename // empty)' \
+             | python3 .github/scripts/check_ownership.py "$AUTHOR" .github/bot-owners "$APPROVALS"; then
+            state=success; description="Own bot files only, or approved by another collaborator"
+          else
+            state=failure; description="Changes outside the author's bots need 1 other approval"
+          fi
+
+          gh api -X POST "repos/$REPO/statuses/$SHA" -f state="$state" -f context=ownership \
+            -f description="$description" -f target_url="$RUN_URL" > /dev/null
