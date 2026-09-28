@@ -1,8 +1,8 @@
-# Ticket to Ride: bot experiments
+# Ticket to Ride: beating ExampleBot with AI tools
 
-A Python implementation of Ticket to Ride for running, inspecting, and comparing automated players. This repository supports a CSC 4240/5240 Artificial Intelligence class project: use AI tools and techniques to make game decisions, then evaluate those decisions through repeated games.
+This repository holds a CSC 4240/5240 Artificial Intelligence class project. Our goal is to use AI tools and techniques to build a [Ticket to Ride](https://boardgamegeek.com/boardgame/9209/ticket-to-ride) agent that consistently beats [ExampleBot](integrations/external/bots/example_bot.py), a deliberately simple baseline. Success means a head-to-head win rate above 50% against ExampleBot on previously unused evaluation seeds, measured in two-player games on the classic (United States) map with each seed played in both seat orders. The [project proposal](deliverables/project_proposal.md) defines the goal, method, and evaluation plan.
 
-The code includes a game engine, seven bot implementations, marimo notebooks for watching games, a FastAPI backend with PocketBase storage, and scripts for tournament evaluation and XGBoost training. Bots choose from the engine's legal actions using a view of their own cards, tickets, and public game information.
+The project builds on a Python implementation of the Ticket to Ride rules that team member Lucas Starkey wrote before the course. The code includes that game engine, seven bot implementations, marimo notebooks for watching games, a FastAPI backend with PocketBase storage, and scripts for tournament evaluation and XGBoost training. Bots choose from the engine's legal actions using a view of their own cards, tickets, and public game information.
 
 ## Run a game
 
@@ -30,7 +30,7 @@ The output is a score dictionary keyed by `bot_0` and `bot_1`. The engine seed c
 | Bot | Decision method |
 | --- | --- |
 | [Random Bot](integrations/external/bots/random_bot.py) | Random choice from legal actions; a baseline for comparisons. |
-| [Example Bot](integrations/external/bots/example_bot.py) | Plans connections between destination tickets, using route point values as a cost estimate. |
+| [Example Bot](integrations/external/bots/example_bot.py) | **The project benchmark.** Plans connections between destination tickets, using route point values as a cost estimate; does not model opponents, block routes, or time the endgame. |
 | [Qualifier Bot](integrations/external/bots/qualifier_bot.py) | Uses expected turns to collect cards and claim routes as its planning cost. |
 | [Fable Best Bot](integrations/external/bots/fable_best_bot.py) | Adds endgame timing, contested-route priorities, and locomotive spending heuristics. |
 | [Codex Best Bot](integrations/external/bots/codex_best_bot.py) | Evaluates ticket portfolios and card draws with expected-turn costs and route risk. |
@@ -121,6 +121,8 @@ This is imitation of a heuristic teacher. The trainer's report measures agreemen
 ## Write a bot
 
 Use **New bot** in `applications/notebook_harness/bots.py` with the backend running, or copy [the starter notebook](integrations/external/templates/bots/build_your_bot_here.py) into `integrations/external/bots/`.
+
+Team members name their bot files with their own prefix (`david_`, `isaiah_`, `batrail_`, e.g. `integrations/external/bots/david_route_bot.py`). Pull requests that change only your own bot files and `deliverables/` can merge without review; any other change to `main` needs an approving review from one other collaborator. [.github/bot-owners](.github/bot-owners) lists the prefixes.
 
 Give the copy a unique `BOT_META["id"]`, a display name, version, and description. Rename its class and corresponding notebook references. Discovery expects exactly one concrete `BaseBot` subclass; the template extends `ActionBot` and sets `META = BOT_META` on the class.
 
