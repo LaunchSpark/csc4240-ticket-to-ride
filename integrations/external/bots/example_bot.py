@@ -3,7 +3,7 @@ import marimo
 __generated_with = "0.23.13"
 app = marimo.App(width="medium")
 
-with app.setup:
+with app.setup(hide_code=True):
     import heapq
     from collections import Counter
     from itertools import combinations
